@@ -1,0 +1,46 @@
+openapi: 3.0.0
+info:
+  title: Stardust Petstore E2E API
+  version: 2.5.0
+paths: {}
+components:
+  schemas:
+    Pet:
+      type: object
+      required:
+        - id
+        - name
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique identifier
+        name:
+          type: string
+          example: Luna
+        birthDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: Pet status in the system
+          enum:
+            - AVAILABLE
+            - PENDING
+            - ADOPTED
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/Tag'
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
