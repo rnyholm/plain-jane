@@ -17,8 +17,8 @@ We've all been there. You just want a simple Java class to hold some API data. Y
 She's the girl next door of code generation. Simple, reliable, and absolutely drama-free.
 
 ## 🚀 Features
-* **Lightning Fast:** Compiled ahead-of-time (AOT) into a native machine binary using GraalVM. Starts in milliseconds.
-* **100% Standalone:** You don't even need Java installed on your machine to run her.
+
+* **Minimalist:** The generated code is 100% standalone. No runtime dependencies required.
 * **Smart Sanitization:** Uses AST-parsing (JavaParser) to clean up messy OpenAPI models and rip out useless annotations.
 * **Flexible Input:** Feed her a local file (`api.yaml`) or a remote URL (`https://.../openapi.json`).
 * **Safe & Sound:** Fail-fast validation ensures you don't start a build with missing arguments.
@@ -26,31 +26,24 @@ She's the girl next door of code generation. Simple, reliable, and absolutely dr
 * **Beautiful UI:** A crisp, developer-friendly CLI experience with clear feedback.
 
 ## 🛠️ Building
-Plain Jane runs on the bleeding edge of **Kotlin (2.3.0)**, but compiles down to a blazingly fast Native Image targeting **Java 21**.
+Plain Jane is built on a modern stack, leveraging **Kotlin 2.3.0** and **Java 21**.
 
-To build her from source, you need **GraalVM JDK 21** installed (and C++ build tools if you are on Windows).
-
-```bash
-# Linux/Mac
-./gradlew nativeCompile
-
-# Windows (run from "x64 Native Tools Command Prompt for VS or similar")
-.\gradlew.bat nativeCompile
-```
-
-**Artifact location:** 
-* Linux/Mac: `build/native/nativeCompile/plain-jane`
-* Windows: `build\native\nativeCompile\plain-jane.exe`
-
-## 💻 Usage
-Because Plain Jane is a native executable, you just run her directly. No JVM, no hassle.
+Build the executable shadow jar (Plain Jane doesn't travel light herself; she carries her own dependencies so your generated code doesn't have to):
 
 ```bash
 # Linux/Mac
-./plain-jane -i <input> -o <dir> -p <package> [options]
+./gradlew shadowJar
 
 # Windows
-.\plain-jane.exe -i <input> -o <dir> -p <package> [options]
+.\gradlew.bat shadowJar
+```
+
+**Artifact location:** `build/libs/plain-jane.jar`
+
+## 💻 Usage
+
+```bash
+java -jar plain-jane.jar -i <input> -o <dir> -p <package> [options]
 ```
 
 ### Core Options (Required)
@@ -87,10 +80,10 @@ Because Plain Jane is a native executable, you just run her directly. No JVM, no
 | `-h`, `--help`  | Show the help message and exit                                                     |
 
 ## ⚙️ Development
+
 Under the hood, Plain Jane utilizes **Kotlin**, **Clikt** for the beautiful terminal UI, **OpenAPI Generator** for raw code generation, and **JavaParser** to sanitize the AST and strip out the nonsense.
 
 ### Run in Dev Mode
-During development, you don't need to wait for AOT compilation. You can run her directly on the JVM using Gradle:
 
 ```bash
 # Linux/Mac

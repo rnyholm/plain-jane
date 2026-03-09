@@ -1,56 +1,35 @@
-name: Release Native Binaries
+name: Release Plain Jane
 
 on:
   push:
     tags:
-      - 'v*' # trigged on pushing tags like v1.0.0
+      - 'v*' # trigger on pushing tags like v1.0.0
 
 permissions:
   contents: write # required in order to upload files to GitHub Releases
 
 jobs:
-  build-native-binaries:
-    name: Build on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: plain-jane
-            asset_name: plain-jane-linux-x64
-          - os: macos-latest
-            artifact_name: plain-jane
-            asset_name: plain-jane-macos-aarch64
-          - os: windows-latest
-            artifact_name: plain-jane.exe
-            asset_name: plain-jane-windows-x64.exe
+  build-and-release:
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup GraalVM
-      uses: graalvm/setup-graalvm@v1
-      with:
-        java-version: '21'
-        distribution: 'graalvm'
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        native-image-job: true # resolves all C++ dependencies on Windows
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v3
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
-    - name: Build Native Image
-      run: ./gradlew nativeCompile
+      - name: Build Fat JAR
+        run: ./gradlew shadowJar
 
-    - name: Rename artifact for release
-      shell: bash
-      run: |
-        cd build/native/nativeCompile
-        mv ${{ matrix.artifact_name }} ${{ matrix.asset_name }}
-
-    - name: Upload Release Asset
-      uses: softprops/action-gh-release@v2
-      with:
-        files: build/native/nativeCompile/${{ matrix.asset_name }}
-        generate_release_notes: true
+      - name: Create Release and Upload JAR
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/libs/plain-jane.jar
+          generate_release_notes: true

@@ -1,7 +1,7 @@
 plugins {
     kotlin("jvm") version "2.3.0"
     application
-    id("org.graalvm.buildtools.native") version "0.11.5"
+    id("com.gradleup.shadow") version "9.3.1"
 }
 
 group = "ax.stardust"
@@ -66,6 +66,16 @@ tasks {
                 "--enable-native-access=ALL-UNNAMED",
             )
     }
+    shadowJar {
+        archiveFileName.set("plain-jane.jar")
+
+        manifest {
+            attributes["Main-Class"] = "ax.stardust.plainjane.cli.PlainJaneCommandKt"
+            attributes["Implementation-Version"] = project.version
+            attributes["Description"] = "The no-nonsense OpenAPI generator"
+            attributes["Enable-Native-Access"] = "ALL-UNNAMED"
+        }
+    }
     processResources {
         dependsOn(generateVersionProperties)
     }
@@ -73,25 +83,6 @@ tasks {
         useJUnitPlatform() // force JUnit 5
         testLogging {
             events("passed", "skipped", "failed")
-        }
-    }
-}
-
-graalvmNative {
-    agent {
-        defaultMode.set("standard")
-    }
-    binaries {
-        named("main") {
-            imageName.set("plain-jane") // name of binary file
-            mainClass.set("ax.stardust.plainjane.cli.PlainJaneCommandKt")
-
-            // configuration for helping the compiler
-            buildArgs.add("-O3")            // maximize performance of the generated binary
-            buildArgs.add("--no-fallback")  // to force a 100% native image without any JVM fallback
-
-            // configuration for avoiding encoding issues on some platforms (e.g. Windows)
-            buildArgs.add("-H:+AddAllCharsets")
         }
     }
 }
