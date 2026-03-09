@@ -1,6 +1,7 @@
 package ax.stardust.plainjane.cli
 
 import ax.stardust.plainjane.ModelOrchestrator
+import ax.stardust.plainjane.UI
 import ax.stardust.plainjane.config.ExtrasConfig
 import ax.stardust.plainjane.config.IOConfig
 import ax.stardust.plainjane.config.Input
@@ -223,15 +224,15 @@ class PlainJaneCommand : CliktCommand(name = "plain-jane") {
             val orchestrationResult = orchestrator.orchestrate() // do the job!
             val message =
                 if (orchestrationResult.failedCount > 0) {
-                    "\n⚠️ Done! Generated ${orchestrationResult.sanitizedCount} clean models and " +
+                    "${UI.WARNING}️ Done! Generated ${orchestrationResult.sanitizedCount} clean models and " +
                         "${orchestrationResult.failedCount} raw models (due to parsing errors) " +
                         "in ${ioConfig.output.absolutePath}"
                 } else {
-                    "\n✨ Done! Generated ${orchestrationResult.sanitizedCount} clean models in ${ioConfig.output.absolutePath}"
+                    "${UI.STARS} Done! Generated ${orchestrationResult.sanitizedCount} clean models in ${ioConfig.output.absolutePath}"
                 }
             echo(message)
         } catch (e: Exception) {
-            echo("\n❌ Fatal Error: ${e.message}", err = true)
+            echo("${UI.ERROR} Fatal Error: ${e.message}", err = true)
             if (runtimeOptions.debug) {
                 echo(e.stackTraceToString(), err = true)
             }

@@ -11,6 +11,7 @@ import ax.stardust.plainjane.TestData.OPENAPI_GENERATOR_VERSION
 import ax.stardust.plainjane.TestData.PACKAGE_NAME
 import ax.stardust.plainjane.TestData.PETSTORE_URL
 import ax.stardust.plainjane.TestData.PLAIN_JANE_VERSION
+import ax.stardust.plainjane.UI
 import ax.stardust.plainjane.config.ExtrasConfig
 import ax.stardust.plainjane.config.IOConfig
 import ax.stardust.plainjane.config.Input
@@ -106,7 +107,7 @@ class ExtrasGeneratorTest {
         assertContains(content, "<version>$ARTIFACT_VERSION</version>")
         assertFalse(content.contains("<distributionManagement>"), "Should not contain distribution block if omitted")
 
-        assertContains(capturedLogs, "📦 Generated pom.xml")
+        assertContains(capturedLogs, "${UI.PACKAGE} Generated pom.xml")
     }
 
     @Test
@@ -140,7 +141,7 @@ class ExtrasGeneratorTest {
         assertContains(content, "<name>$DISTRIBUTION_NAME</name>")
         assertContains(content, "<url>$DISTRIBUTION_URL</url>")
 
-        assertContains(capturedLogs, "📦 Generated pom.xml")
+        assertContains(capturedLogs, "${UI.PACKAGE} Generated pom.xml")
     }
 
     @Test
@@ -174,7 +175,7 @@ class ExtrasGeneratorTest {
         assertContains(content, "<url>$DISTRIBUTION_URL</url>")
         assertFalse(content.contains("<name>"), "Should not contain name tag when distributionName is null")
 
-        assertContains(capturedLogs, "📦 Generated pom.xml")
+        assertContains(capturedLogs, "${UI.PACKAGE} Generated pom.xml")
     }
 
     @Test
@@ -215,7 +216,7 @@ class ExtrasGeneratorTest {
         val expectedPackagePath = PACKAGE_NAME.replace('.', '/')
         assertContains(content, "copy the `$expectedPackagePath` directory directly")
 
-        assertContains(capturedLogs, "📄 Generated README.md")
+        assertContains(capturedLogs, "${UI.DOC} Generated README.md")
     }
 
     @Test
@@ -242,7 +243,7 @@ class ExtrasGeneratorTest {
         assertContains(content, "/.idea")
         assertContains(content, "*.iml")
 
-        assertContains(capturedLogs, "🙈 Generated .gitignore")
+        assertContains(capturedLogs, "${UI.MONKEY} Generated .gitignore")
     }
 
     @Test

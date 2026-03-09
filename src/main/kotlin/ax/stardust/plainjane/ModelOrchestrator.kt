@@ -60,7 +60,7 @@ class ModelOrchestrator(
         workspace.initialize()
         engine.generateRawModels()
 
-        log("🧼 Sanitizing and moving models...")
+        log("${UI.SOAP} Sanitizing and moving models...")
 
         // we handle the sanitization and file writing in parallel hence the need for thread safety
         val sanitizedCount = AtomicInteger(0)

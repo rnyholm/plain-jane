@@ -1,5 +1,6 @@
 package ax.stardust.plainjane.engine
 
+import ax.stardust.plainjane.UI
 import ax.stardust.plainjane.config.IOConfig
 import java.io.File
 
@@ -42,7 +43,7 @@ class WorkspaceInitializer(
     fun initialize() {
         // cleaning output directory if desired
         if (ioConfig.clean && ioConfig.output.exists()) {
-            log("🧹 Cleaning output directory...")
+            log("${UI.SWEEP} Cleaning output directory...")
             ioConfig.output.deleteRecursively()
         }
         packageDir.mkdirs()

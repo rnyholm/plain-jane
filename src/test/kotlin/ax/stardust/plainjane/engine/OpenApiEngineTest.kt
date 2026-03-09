@@ -6,6 +6,7 @@ import ax.stardust.plainjane.TestData.ARTIFACT_ID
 import ax.stardust.plainjane.TestData.OPENAPI_GENERATOR_VERSION
 import ax.stardust.plainjane.TestData.PACKAGE_NAME
 import ax.stardust.plainjane.TestData.PLAIN_JANE_VERSION
+import ax.stardust.plainjane.UI
 import ax.stardust.plainjane.config.IOConfig
 import ax.stardust.plainjane.config.Input
 import ax.stardust.plainjane.config.ModelConfig
@@ -158,7 +159,7 @@ class OpenApiEngineTest {
         // instation of the engine will trigger configureLogging()
         OpenApiEngine(ioConfig, baseModelConfig, debugOptions, baseToolVersions, ARTIFACT_ID, logger)
 
-        assertTrue(capturedLogs.any { it.contains("🐞 Debug mode enabled") })
+        assertTrue(capturedLogs.any { it.contains("${UI.BUG} Debug mode enabled") })
         // note! Since we cannot (or should not) reliably inspect Java's global log levels
         // in a unit test without risking side effects for other tests, we settle for
         // verifying that the branch was executed via the log output.

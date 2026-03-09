@@ -7,6 +7,7 @@ import ax.stardust.plainjane.TestData.DISTRIBUTION_URL
 import ax.stardust.plainjane.TestData.PACKAGE_NAME
 import ax.stardust.plainjane.TestData.PETSTORE_URL
 import ax.stardust.plainjane.TestData.extractFileName
+import ax.stardust.plainjane.UI
 import com.github.ajalt.clikt.testing.test
 import io.mockk.every
 import io.mockk.mockkConstructor
@@ -213,7 +214,7 @@ class PlainJaneCommandTest {
         verify(exactly = 1) { anyConstructed<ModelOrchestrator>().orchestrate() }
 
         // verify that the error message is printed in stderr along with the stack trace
-        assertContains(result.stderr, "❌ Fatal Error: $expectedError")
+        assertContains(result.stderr, "${UI.ERROR} Fatal Error: $expectedError")
         assertContains(result.stderr, "java.lang.RuntimeException: $expectedError")
     }
 

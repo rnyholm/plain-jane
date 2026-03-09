@@ -1,5 +1,6 @@
 package ax.stardust.plainjane.engine
 
+import ax.stardust.plainjane.UI
 import ax.stardust.plainjane.config.ExtrasConfig
 import ax.stardust.plainjane.config.IOConfig
 import ax.stardust.plainjane.config.MavenConfig
@@ -97,7 +98,7 @@ class ExtrasGenerator(
             }
 
         File(ioConfig.output, "pom.xml").writeText(content)
-        log("📦 Generated pom.xml")
+        log("${UI.PACKAGE} Generated pom.xml")
     }
 
     private fun generateReadme(
@@ -153,7 +154,7 @@ class ExtrasGenerator(
             """.trimIndent()
 
         File(ioConfig.output, "README.md").writeText(content)
-        log("📄 Generated README.md")
+        log("${UI.DOC} Generated README.md")
     }
 
     private fun generateGitignore() {
@@ -165,6 +166,6 @@ class ExtrasGenerator(
             .DS_Store
             """.trimIndent(),
         )
-        log("🙈 Generated .gitignore")
+        log("${UI.MONKEY} Generated .gitignore")
     }
 }
