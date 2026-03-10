@@ -124,7 +124,20 @@ class ExtrasGenerator(
             - **API Title:** $apiTitle
             - **API Version:** $apiVersion
             - **Generated on:** $generatedDate
-            
+
+            ## 🚀 Building & Publishing
+            If this project was generated with a `pom.xml` (`--scaffold` or `--with-pom`), you can easily build and publish the artifact using Maven.
+
+            To compile the models and install them into your local Maven repository (for use in other local projects):
+            ```bash
+            mvn clean install
+            ```
+
+            To package and deploy the artifacts to your remote registry (ensure `distributionManagement` is configured):
+            ```bash
+            mvn clean deploy
+            ```
+
             ## 🔗 Integration
             This project uses a flat source structure where the package hierarchy starts directly at the root. 
             If the code was generated with pom the included `pom.xml` is pre-configured with `<sourceDirectory>.</sourceDirectory>`.
