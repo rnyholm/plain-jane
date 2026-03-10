@@ -187,6 +187,7 @@ class OpenApiEngine(
                 addAdditionalProperty("hideGenerationTimestamp", "true")
                 addAdditionalProperty("sortModelPropertiesByRequiredFlag", "false")
                 addAdditionalProperty("legacyDiscriminatorBehavior", "false")
+                addAdditionalProperty("supportUrlQuery", "false")
             }
 
         // temporarily mute standard streams to silence OpenAPI Generator's hardcoded console spam
