@@ -1,5 +1,5 @@
 [versions]
-plainjane = "1.0.0"
+plainjane = "1.0.1"
 clikt = "5.0.3"
 openapi-generator = "7.19.0"
 javaparser = "3.28.0"
