@@ -224,7 +224,7 @@ class PlainJaneCommand : CliktCommand(name = "plain-jane") {
             val orchestrationResult = orchestrator.orchestrate() // do the job!
             val message =
                 if (orchestrationResult.failedCount > 0) {
-                    "${UI.WARNING}️ Done! Generated ${orchestrationResult.sanitizedCount} clean models and " +
+                    "${UI.WARNING} Done! Generated ${orchestrationResult.sanitizedCount} clean models and " +
                         "${orchestrationResult.failedCount} raw models (due to parsing errors) " +
                         "in ${ioConfig.output.absolutePath}"
                 } else {

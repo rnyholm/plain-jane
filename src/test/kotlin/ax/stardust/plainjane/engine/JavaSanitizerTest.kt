@@ -1,5 +1,6 @@
 package ax.stardust.plainjane.engine
 
+import ax.stardust.plainjane.UI
 import ax.stardust.plainjane.config.RuntimeOptions
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -137,7 +138,7 @@ class JavaSanitizerTest {
 
         // verify that we logged a warning and hinted about --debug
         assertEquals(1, capturedLogs.size)
-        assertContains(capturedLogs.first(), "⚠️ Warning: OpenAPI Generator generated invalid Java syntax")
+        assertContains(capturedLogs.first(), "${UI.WARNING} Warning: OpenAPI Generator generated invalid Java syntax")
         assertContains(capturedLogs.first(), "(run with --debug for details).")
     }
 

@@ -60,7 +60,7 @@ class JavaSanitizer(
             if (!parsedFile.isSuccessful) {
                 log(
                     appendDebugHintIfNeeded(
-                        "⚠️ Warning: OpenAPI Generator generated invalid Java syntax for ${file.name}. Skipping sanitization",
+                        "${UI.WARNING} Warning: OpenAPI Generator generated invalid Java syntax for ${file.name}. Skipping sanitization",
                     ),
                 )
 
@@ -133,7 +133,11 @@ class JavaSanitizer(
 
             Result(code = compilationUnit.toString(), isSanitized = true)
         } catch (e: Exception) {
-            log(appendDebugHintIfNeeded("⚠️ Warning: Unexpected error while manipulating AST for ${file.name}. Skipping sanitization"))
+            log(
+                appendDebugHintIfNeeded(
+                    "${UI.WARNING} Warning: Unexpected error while manipulating AST for ${file.name}. Skipping sanitization",
+                ),
+            )
             if (runtimeOptions.debug) {
                 log("   -> Reason: ${e.javaClass.simpleName}: ${e.message}")
             }

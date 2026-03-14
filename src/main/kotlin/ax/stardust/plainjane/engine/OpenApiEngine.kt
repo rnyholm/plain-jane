@@ -123,7 +123,7 @@ class OpenApiEngine(
                 /* options = */ parseOptions,
             )
         if (!parseResult.messages.isNullOrEmpty()) {
-            log("${UI.WARNING}️ OpenAPI Specification issues found in ${ioConfig.input.name}:")
+            log("${UI.WARNING} OpenAPI Specification issues found in ${ioConfig.input.name}")
 
             if (runtimeOptions.debug) {
                 val reasons = parseResult.messages.joinToString("\n") { "   - ${it.trim()}" }
