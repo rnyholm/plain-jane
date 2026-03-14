@@ -122,7 +122,7 @@ class JavaSanitizerTest {
             package com.example.models;
             
             public class BrokenModel {
-                // Syntaktiskt fel här:
+                // syntactic error here:
                 private String name = ; 
             }
             """.trimIndent()

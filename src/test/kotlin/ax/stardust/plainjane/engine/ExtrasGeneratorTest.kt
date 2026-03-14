@@ -33,7 +33,6 @@ class ExtrasGeneratorTest {
     private lateinit var capturedLogs: MutableList<String>
     private val logger: (String) -> Unit = { capturedLogs.add(it) }
 
-    // Standardkonfigurationer som vi kan återanvända och modifiera i testerna
     private lateinit var baseMavenConfig: MavenConfig
     private lateinit var baseModelConfig: ModelConfig
     private lateinit var baseToolVersions: ToolVersions
