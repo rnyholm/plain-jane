@@ -5,6 +5,7 @@ info:
 paths: {}
 components:
   schemas:
+
     Pet:
       type: object
       required:
@@ -36,6 +37,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Tag'
+        metadata:
+          $ref: '#/components/schemas/CustomTags'
+
     Tag:
       type: object
       properties:
@@ -44,3 +48,25 @@ components:
           format: int64
         name:
           type: string
+
+    CustomTags:
+      type: object
+      additionalProperties:
+        type: string
+
+    Animal:
+      oneOf:
+        - $ref: '#/components/schemas/Cat'
+        - $ref: '#/components/schemas/Dog'
+
+    Cat:
+      type: object
+      properties:
+        meows:
+          type: boolean
+
+    Dog:
+      type: object
+      properties:
+        barks:
+          type: boolean

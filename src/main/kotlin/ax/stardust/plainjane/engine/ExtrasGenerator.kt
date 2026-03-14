@@ -162,6 +162,15 @@ class ExtrasGenerator(
             - **Zero Dependencies:** Does not require Jackson, Gson, Jakarta EE, or any other library to compile, JRE is enough.
             - **Pure Java Types:** Uses only standard Java types (e.g., `java.util.List`, `java.time.OffsetDateTime`).
             
+            ## 📝 Notes
+            ### Polymorphism & JSON Serialization
+            Because Plain Jane generates pure Java, she does not dictate how you serialize or deserialize your data. 
+
+            If your OpenAPI specification uses polymorphism (e.g., `oneOf`, `anyOf`, or `discriminator`), Plain Jane will 
+            generate the correct class hierarchy (inheritance). However, **you must configure your JSON mapper** 
+            (such as Jackson Subtypes/Mixins or Gson runtime adapters) to handle the subtype mapping manually. 
+            Plain Jane provides the clean POJOs, but you own the parsing logic!
+            
             ---
             *Generated with ❤️ by Plain Jane*
             """.trimIndent()

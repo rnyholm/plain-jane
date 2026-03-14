@@ -1,9 +1,16 @@
 package ax.stardust.plainjane.engine
 
+import ax.stardust.plainjane.UI
 import ax.stardust.plainjane.config.RuntimeOptions
 import com.github.javaparser.JavaParser
 import com.github.javaparser.ParserConfiguration
+import com.github.javaparser.StaticJavaParser
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.FieldDeclaration
+import com.github.javaparser.ast.body.InitializerDeclaration
+import com.github.javaparser.ast.body.MethodDeclaration
+import com.github.javaparser.ast.body.VariableDeclarator
+import com.github.javaparser.ast.expr.AssignExpr
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr
 import com.github.javaparser.ast.expr.NormalAnnotationExpr
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr
@@ -51,12 +58,15 @@ class JavaSanitizer(
      * @return A [Result] object containing the processed code and a success flag.
      */
     fun sanitize(file: File): Result {
+        // pre-patching the raw code to fix known syntax bugs from the OpenAPI generator before parsing
+        val code = patchEngineSyntaxBugs(file.readText())
+
         // just to be sure to parse according to java 8
         val parserConfig = ParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8)
         val parser = JavaParser(parserConfig)
 
         return try {
-            val parsedFile = parser.parse(file)
+            val parsedFile = parser.parse(code)
             if (!parsedFile.isSuccessful) {
                 log(
                     appendDebugHintIfNeeded(
@@ -90,43 +100,165 @@ class JavaSanitizer(
                 return Result(code = file.readText(), isSanitized = false)
             }
 
-            // sanitize AST tree using visitor pattern which will effectively remove all annotations
-            // and field declarations in one single pass
+            // sanitize AST tree using the visitor pattern, this effectively removes all unwanted
+            // framework dependencies, annotations and engine bugs in one single pass
             val compilationUnit = parsedFile.result.get()
             compilationUnit.accept(
                 object : ModifierVisitor<Void?>() {
-                    // simple annotations like, @Generated
+                    // 1. framework annotations
+                    // remove all annotations (e.g. @JsonProperty, @Schema) unless explicitly safelisted
                     override fun visit(
                         n: MarkerAnnotationExpr,
                         arg: Void?,
                     ): Visitable? = if (n.nameAsString in ALLOWED_ANNOTATIONS) super.visit(n, arg) else null
 
-                    // annotations with a single value, like @SuppressWarnings("...")
                     override fun visit(
                         n: SingleMemberAnnotationExpr,
                         arg: Void?,
                     ): Visitable? = if (n.nameAsString in ALLOWED_ANNOTATIONS) super.visit(n, arg) else null
 
-                    // complex annotations with multiple values, like @JsonProperty(value = "...")
                     override fun visit(
                         n: NormalAnnotationExpr,
                         arg: Void?,
                     ): Visitable? = if (n.nameAsString in ALLOWED_ANNOTATIONS) super.visit(n, arg) else null
 
-                    // field declarations
+                    // 2. internal fields & static blocks
+                    // remove static constants used for JSON property mapping and validation
                     override fun visit(
                         n: FieldDeclaration,
                         arg: Void?,
                     ): Visitable? {
-                        val isInternalConstant = n.variables.any { it.nameAsString.startsWith("JSON_PROPERTY_") }
+                        val isInternalConstant =
+                            n.variables.any {
+                                val name = it.nameAsString
+                                name.startsWith("JSON_PROPERTY_") ||
+                                    name.startsWith("openapiFields") ||
+                                    name.startsWith("openapiRequiredFields")
+                            }
                         return if (isInternalConstant) null else super.visit(n, arg)
+                    }
+
+                    // remove static initialization blocks (e.g. discriminator mappings or openapi fields)
+                    override fun visit(
+                        n: InitializerDeclaration,
+                        arg: Void?,
+                    ): Visitable? {
+                        val code = n.toString()
+                        val isUnwantedBlock = n.isStatic && (code.contains("registerDiscriminator") || code.contains("openapiFields"))
+                        return if (isUnwantedBlock) null else super.visit(n, arg)
+                    }
+
+                    // 3. inner classes & polymorphism
+                    override fun visit(
+                        n: ClassOrInterfaceDeclaration,
+                        arg: Void?,
+                    ): Visitable? {
+                        // strip Gson adapter classes from objects and enums to remove external dependencies
+                        val isGsonAdapter =
+                            n.nameAsString == "CustomTypeAdapterFactory" ||
+                                n.nameAsString == "Adapter" ||
+                                n.extendedTypes.any { it.nameAsString.contains("TypeAdapter") }
+
+                        if (isGsonAdapter) return null
+
+                        // convert bloated oneOf/anyOf OpenAPI wrappers into clean, empty marker interfaces
+                        // this preserves the type hierarchy for polymorphism without needing JSON logic
+                        val isOpenApiWrapper = n.extendedTypes.any { it.nameAsString == "AbstractOpenApiSchema" }
+                        if (isOpenApiWrapper) {
+                            n.extendedTypes.removeIf { it.nameAsString == "AbstractOpenApiSchema" }
+                            n.isInterface = true
+                            n.members.clear()
+                        }
+                        return super.visit(n, arg)
+                    }
+
+                    // 4. helper methods
+                    // strip self-serializing JSON methods and URL formatters tied to the engine's default library
+                    override fun visit(
+                        n: MethodDeclaration,
+                        arg: Void?,
+                    ): Visitable? {
+                        val unwantedMethods =
+                            setOf(
+                                "toUrlQueryString",
+                                "validateJsonElement",
+                                "validateJsonObject",
+                                "fromJson",
+                                "toJson",
+                            )
+                        return if (n.nameAsString in unwantedMethods) null else super.visit(n, arg)
+                    }
+
+                    // 5. engine bug fixes
+                    // fix OpenAPI bug: custom classes acting as Maps get incorrectly
+                    // initialized as HashMaps in field declarations, we enforce their own constructor
+                    override fun visit(
+                        n: VariableDeclarator,
+                        arg: Void?,
+                    ): Visitable? {
+                        val typeName = n.type.asString()
+                        if (!typeName.contains("Map") && n.initializer.isPresent) {
+                            if (n.initializer
+                                    .get()
+                                    .toString()
+                                    .contains("HashMap")
+                            ) {
+                                n.setInitializer("new $typeName()")
+                            }
+                        }
+                        return super.visit(n, arg)
+                    }
+
+                    // fix the same HashMap initialization bug if it occurs inside a method or constructor
+                    override fun visit(
+                        n: AssignExpr,
+                        arg: Void?,
+                    ): Visitable? {
+                        if (n.value.toString().contains("HashMap")) {
+                            val targetName = n.target.toString().replace("this.", "")
+                            n.findAncestor(ClassOrInterfaceDeclaration::class.java).ifPresent { classDecl ->
+                                classDecl.fields.forEach { field ->
+                                    field.variables.forEach { variable ->
+                                        if (variable.nameAsString == targetName) {
+                                            val typeName = variable.type.asString()
+                                            if (!typeName.contains("Map")) {
+                                                n.value = StaticJavaParser.parseExpression("new $typeName()")
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        return super.visit(n, arg)
+                    }
+
+                    // 6. enum deduplication
+                    // fixes an engine bug where special characters (like + and - in timezones)
+                    // are stripped away, resulting in identical variable names within the same Enum
+                    // e.g., "Etc/GMT+12" and "Etc/GMT-12" both become "ETC_GMT_122"
+                    override fun visit(
+                        n: com.github.javaparser.ast.body.EnumDeclaration,
+                        arg: Void?,
+                    ): Visitable? {
+                        val seenNames = mutableSetOf<String>()
+                        val duplicates = mutableListOf<com.github.javaparser.ast.body.EnumConstantDeclaration>()
+
+                        n.entries.forEach { entry ->
+                            // if the enum constant name already exists in our Set, mark it for removal
+                            if (!seenNames.add(entry.nameAsString)) {
+                                duplicates.add(entry)
+                            }
+                        }
+
+                        // remove all duplicates safely from the AST tree
+                        duplicates.forEach { it.remove() }
+                        return super.visit(n, arg)
                     }
                 },
                 null,
             )
 
-            // remove unnecessary imports that are no longer needed after removing annotations and fields,
-            // such as Jackson, Jakarta, Swagger, etc.
+            // final cleanup: remove orphaned imports (Jackson, Gson, OpenAPI) that are no longer needed
             compilationUnit.imports.removeIf { import ->
                 UNWANTED_PACKAGES.any { unwantedPackage -> import.nameAsString.startsWith(unwantedPackage) }
             }
@@ -142,13 +274,34 @@ class JavaSanitizer(
                 log("   -> Reason: ${e.javaClass.simpleName}: ${e.message}")
             }
 
-            Result(code = file.readText(), isSanitized = false)
+            Result(code = code, isSanitized = false)
         }
     }
 
     private fun appendDebugHintIfNeeded(message: String): String {
         val suffix = if (runtimeOptions.debug) "." else " (run with --debug for details)."
         return "$message$suffix"
+    }
+
+    /**
+     * A "quarantine" area for text-based regex hacks.
+     * We only use this to fix critical syntax errors generated by the underlying OpenAPI engine.
+     * If the engine generates invalid Java (e.g., stray commas, generics inside variable names),
+     * JavaParser will crash. We patch those specific bugs here before building the AST.
+     */
+    private fun patchEngineSyntaxBugs(code: String): String {
+        var patchedCode = code
+
+        // bug 1: stray comma in hashCode for empty alias classes
+        patchedCode = patchedCode.replace(HASH_COMMA_REGEX, "Objects.hash(")
+
+        // bug 2: generics injected into variable names (adapterMap<String, String> =)
+        patchedCode = patchedCode.replace(GSON_ADAPTER_REGEX, "adapterMap =")
+
+        // bug 3: static method calls on generic types (Map<String, Type>.validateJsonElement)
+        patchedCode = patchedCode.replace(GSON_VALIDATE_REGEX, "Map.validateJsonElement")
+
+        return patchedCode
     }
 
     companion object {
@@ -168,12 +321,24 @@ class JavaSanitizer(
         val UNWANTED_PACKAGES =
             listOf(
                 "com.fasterxml.jackson",
-                "org.openapitools",
+                "com.google.gson",
+                "ignore.",
+                "io.gson",
+                "io.swagger",
                 "jakarta.annotation",
                 "jakarta.validation",
-                "io.swagger",
                 "javax.annotation",
                 "javax.validation",
+                "okhttp3",
+                "okio",
+                "org.openapitools",
             )
+
+        /**
+         * Pre-compiled regexes for engine bug fixes
+         */
+        val HASH_COMMA_REGEX = Regex("""Objects\.hash\s*\(\s*,""")
+        val GSON_ADAPTER_REGEX = Regex("""adapterMap\s*<[^>]+>\s*=""")
+        val GSON_VALIDATE_REGEX = Regex("""Map\s*<[^>]+>\.validateJsonElement""")
     }
 }

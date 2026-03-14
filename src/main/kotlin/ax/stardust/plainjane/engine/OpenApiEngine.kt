@@ -82,10 +82,10 @@ class OpenApiEngine(
             val loggersToMute =
                 listOf(
                     "io.swagger.v3.parser.OpenAPIV3Parser",
-                    "org.openapitools.codegen.config.CodegenConfigurator",
-                    "org.openapitools.codegen.DefaultGenerator",
                     "org.openapitools.codegen.AbstractGenerator",
+                    "org.openapitools.codegen.config.CodegenConfigurator",
                     "org.openapitools.codegen.DefaultCodegen",
+                    "org.openapitools.codegen.DefaultGenerator",
                 )
 
             loggersToMute.forEach { loggerName ->
@@ -157,21 +157,22 @@ class OpenApiEngine(
         // configure the OpenAPI Generator with desired settings
         val configurator =
             CodegenConfigurator().apply {
-                // specify the input spec and output directory as well as the packages
+                // 1. core paths & naming
                 setInputSpec(ioConfig.input.uri)
                 setOutputDir(ioConfig.output.absolutePath)
                 setGeneratorName("java")
                 setPackageName(modelConfig.pkg)
                 setModelPackage(modelConfig.pkg)
 
-                // "dummy" packages for things we will delete/disable anyway
+                // 2. scope & filtering (limit generation to pure models)
+                setValidateSpec(false) // ignore strict OpenAPI validation (e.g. missing licenses)
+                setOpenapiNormalizer(mapOf("REMOVE_X_INTERNAL" to "true")) // strip internal models/endpoints
+
+                // route unused generation artifacts to a dummy package that we delete later
                 setApiPackage("ignore")
                 setInvokerPackage("ignore")
 
-                // ignore validation errors in the spec, like license-errors etc.
-                setValidateSpec(false)
-
-                // disable generation of APIs, invokers, supporting files, docs, and tests since we only want models
+                // explicitly disable APIs, docs, and tests, we only want the models
                 addGlobalProperty("models", "")
                 addGlobalProperty("apis", "false")
                 addGlobalProperty("invokers", "false")
@@ -179,15 +180,28 @@ class OpenApiEngine(
                 addGlobalProperty("modelDocs", "false")
                 addGlobalProperty("modelTests", "false")
 
-                // java config
-                setLibrary("native")
+                // 3. engine stability & bug prevention
+                // force engine to create dedicated files for simple type aliases to prevent "cannot find symbol" errors
+                setGenerateAliasAsModel(true)
+                // use the most battle-tested template to ensure syntactically flawless Java code
+                // the heavy Gson/OkHttp dependencies will be scrubbed by the JavaSanitizer later
+                setLibrary("okhttp-gson")
+
+                // 4. Java specifics & polymorphism
                 addAdditionalProperty("dateLibrary", "java8")
-                addAdditionalProperty("openApiNullable", "false")
-                addAdditionalProperty("useJakartaEe", "true") // this will be cleaned out later, but the engine needs to know
                 addAdditionalProperty("hideGenerationTimestamp", "true")
                 addAdditionalProperty("sortModelPropertiesByRequiredFlag", "false")
-                addAdditionalProperty("legacyDiscriminatorBehavior", "false")
                 addAdditionalProperty("supportUrlQuery", "false")
+                addAdditionalProperty("legacyDiscriminatorBehavior", "false")
+
+                // OpenAPI uses Jakarta annotations for validation limits, the engine needs this enabled
+                // to parse the spec correctly, but the annotations are scrubbed by the JavaSanitizer later
+                addAdditionalProperty("useJakartaEe", "true")
+                addAdditionalProperty("openApiNullable", "false")
+
+                // force the engine to generate clean Java interfaces for oneOf/anyOf schemas
+                // instead of creating bloated classes with hardcoded Jackson serialization logic
+                addAdditionalProperty("useOneOfInterfaces", "true")
             }
 
         // temporarily mute standard streams to silence OpenAPI Generator's hardcoded console spam
@@ -216,8 +230,7 @@ class OpenApiEngine(
             allGeneratedFiles.filter { file ->
                 val isJavaFile = file.extension == "java"
                 val isIgnored =
-                    file.absolutePath.contains("${File.separator}ignore${File.separator}") ||
-                        file.absolutePath.contains("${File.separator}api${File.separator}")
+                    file.absolutePath.contains("${File.separator}ignore${File.separator}")
                 isJavaFile && !isIgnored
             }
 
@@ -239,16 +252,16 @@ class OpenApiEngine(
         // output and remove them if they exist
         val filesAndDirectoriesToRemove =
             listOf(
-                "src",
-                "api",
                 ".github",
                 ".openapi-generator",
+                ".travis.yml",
+                "api",
+                "bin",
+                "git_push.sh",
                 "gradle",
                 "gradlew",
                 "gradlew.bat",
-                "bin",
-                ".travis.yml",
-                "git_push.sh",
+                "src",
             )
 
         filesAndDirectoriesToRemove.forEach { fileOrDirectory ->

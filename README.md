@@ -6,7 +6,7 @@
 We've all been there. You just want a simple Java class to hold some API data. You run a standard generator, and suddenly your project is bleeding annotations and depends on:
 * `javax.annotation.*`
 * `io.swagger.core.*`
-* `org.apache.commons.*`
+* `com.fasterxml.jackson.*` (or `com.google.gson.*`)
 * The alignment of the stars ✨
 
 **PlainJane** is different. She's not high maintenance. She doesn't need expensive frameworks or 50MB of transitive dependencies just to say "Hello". She gives you:
@@ -19,7 +19,7 @@ She's the girl next door of code generation. Simple, reliable, and absolutely dr
 ## 🚀 Features
 
 * **Minimalist:** The generated code is 100% standalone. No runtime dependencies required.
-* **Smart Sanitization:** Uses AST-parsing (JavaParser) to clean up messy OpenAPI models and rip out useless annotations.
+* **Smart Sanitization:** Uses AST-parsing (JavaParser) to clean up messy OpenAPI models, rip out useless annotations, and automatically patch syntax bugs from the underlying generation engine.
 * **Flexible Input:** Feed her a local file (`api.yaml`) or a remote URL (`https://.../openapi.json`).
 * **Safe & Sound:** Fail-fast validation ensures you don't start a build with missing arguments.
 * **Scaffolding Ready:** Can generate a fully configured Maven project (`pom.xml`, `README.md`, `.gitignore`) alongside your models.
@@ -93,5 +93,12 @@ Under the hood, Plain Jane utilizes **Kotlin**, **Clikt** for the beautiful term
 .\gradlew.bat run --args="-i api.yaml -o build/generated-models -p com.example.api -a my-api-client --scaffold"
 ```
 
-## ⚠️ Note on JSON Serialization
-Because Plain Jane generates pure Java without framework-specific annotations, ensure the consumer of the generated library configures their JSON mapper correctly (e.g., registering the `JavaTimeModule` in Jackson for `LocalDate`/`OffsetDateTime` support).
+## ⚠️ Note on JSON Serialization & Polymorphism
+Plain Jane's primary goal is to generate 100% pure Java code without framework-specific annotations (like `@JsonProperty` or `@JsonSubTypes`).
+
+Because of this strict "Zero Dependencies" rule, she does not dictate how you serialize or deserialize your data.
+* **Dates/Times:** Ensure your JSON mapper is configured to handle `java.time` objects (e.g., registering `JavaTimeModule` in Jackson).
+* **Polymorphism (`oneOf`/`anyOf`):** Plain Jane generates the correct class hierarchies, but she strips out the engine's default static discriminator blocks to avoid forcing external library dependencies. You must configure your JSON mapper (e.g., via Jackson Mixins or Gson Runtime Adapters) to handle subtype mapping manually.
+
+## ⚖️ Acknowledgments
+**Test Data:** The automated stress-testing suite for Plain Jane utilizes the [Stripe OpenAPI Specification](https://github.com/stripe/openapi), which is graciously provided by Stripe, Inc. under the MIT License.
