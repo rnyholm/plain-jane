@@ -5,15 +5,20 @@ import ax.stardust.plainjane.config.RuntimeOptions
 import com.github.javaparser.JavaParser
 import com.github.javaparser.ParserConfiguration
 import com.github.javaparser.StaticJavaParser
+import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.InitializerDeclaration
 import com.github.javaparser.ast.body.MethodDeclaration
+import com.github.javaparser.ast.body.Parameter
 import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.AssignExpr
+import com.github.javaparser.ast.expr.FieldAccessExpr
 import com.github.javaparser.ast.expr.MarkerAnnotationExpr
+import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.NormalAnnotationExpr
 import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr
+import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.visitor.ModifierVisitor
 import com.github.javaparser.ast.visitor.Visitable
 import java.io.File
@@ -103,6 +108,7 @@ class JavaSanitizer(
             // sanitize AST tree using the visitor pattern, this effectively removes all unwanted
             // framework dependencies, annotations and engine bugs in one single pass
             val compilationUnit = parsedFile.result.get()
+            scrubReservedWordUnderscores(compilationUnit)
             compilationUnit.accept(
                 object : ModifierVisitor<Void?>() {
                     // 1. framework annotations
@@ -304,6 +310,71 @@ class JavaSanitizer(
         return patchedCode
     }
 
+    /**
+     * Scrubs OpenAPI's fallback habit of prefixing reserved Java/framework words
+     * (like 'configuration', 'file', 'default') with an underscore.
+     */
+    private fun scrubReservedWordUnderscores(cu: CompilationUnit) {
+        cu.findAll(FieldDeclaration::class.java).forEach { field ->
+            // ignore static final constants (e.g., SERIALIZED_NAME_...) for safety
+            if (field.isStatic) return@forEach
+
+            field.variables.forEach { variable ->
+                val oldName = variable.nameAsString
+
+                // identify fields that were "rescued" by the engine with an underscore
+                if (oldName.startsWith("_") && oldName.length > 1) {
+                    val newName = oldName.substring(1)
+
+                    // SAFETY CHECK: if the new name is a strict Java keyword (e.g., "package", "class"),
+                    // we must keep the underscore so the generated code can compile.
+                    if (JAVA_KEYWORDS.contains(newName)) {
+                        return@forEach
+                    }
+
+                    // 1. rename the field itself (e.g., private ModelConfiguration _configuration -> configuration)
+                    variable.setName(newName)
+
+                    // 2. rename the builder method (e.g., public Session _configuration(...) -> configuration(...))
+                    // (Getters and setters are already named correctly and won't be affected)
+                    cu.findAll(MethodDeclaration::class.java).forEach { method ->
+                        if (method.nameAsString == oldName) {
+                            method.setName(newName)
+                        }
+                    }
+
+                    // 3. fix references with 'this.' or object references (e.g., session._configuration -> session.configuration)
+                    cu.findAll(FieldAccessExpr::class.java).forEach { fieldAccess ->
+                        if (fieldAccess.nameAsString == oldName) {
+                            fieldAccess.setName(newName)
+                        }
+                    }
+
+                    // 4. fix standalone references inside method bodies
+                    cu.findAll(NameExpr::class.java).forEach { nameExpr ->
+                        if (nameExpr.nameAsString == oldName) {
+                            nameExpr.setName(newName)
+                        }
+                    }
+
+                    // 5. fix method parameters (e.g., setConfiguration(ModelConfiguration _configuration))
+                    cu.findAll(Parameter::class.java).forEach { param ->
+                        if (param.nameAsString == oldName) {
+                            param.setName(newName)
+                        }
+                    }
+
+                    // 6. clean up toString() output (prevents "    _configuration: ")
+                    cu.findAll(StringLiteralExpr::class.java).forEach { strExpr ->
+                        if (strExpr.value.contains(oldName)) {
+                            strExpr.value = strExpr.value.replace(oldName, newName)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     companion object {
         /**
          * A safelist of annotations that should survive the sanitization process.
@@ -332,6 +403,67 @@ class JavaSanitizer(
                 "okhttp3",
                 "okio",
                 "org.openapitools",
+            )
+
+        /**
+         * A set of strict Java keywords. We must never strip underscores if the resulting
+         * name matches one of these, otherwise the generated code will fail to compile.
+         */
+        val JAVA_KEYWORDS =
+            setOf(
+                "abstract",
+                "assert",
+                "boolean",
+                "break",
+                "byte",
+                "case",
+                "catch",
+                "char",
+                "class",
+                "const",
+                "continue",
+                "default",
+                "do",
+                "double",
+                "else",
+                "enum",
+                "extends",
+                "final",
+                "finally",
+                "float",
+                "for",
+                "goto",
+                "if",
+                "implements",
+                "import",
+                "instanceof",
+                "int",
+                "interface",
+                "long",
+                "native",
+                "new",
+                "package",
+                "private",
+                "protected",
+                "public",
+                "return",
+                "short",
+                "static",
+                "strictfp",
+                "super",
+                "switch",
+                "synchronized",
+                "this",
+                "throw",
+                "throws",
+                "transient",
+                "try",
+                "void",
+                "volatile",
+                "while",
+                "true",
+                "false",
+                "null",
             )
 
         /**
